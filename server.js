@@ -104,7 +104,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/vehicles', require('./routes/vehicles'));
 app.use('/api/drivers', require('./routes/drivers'));
 app.use('/api/trips', require('./routes/trips'));
-app.use('/api/maintenance', require('./routes/maintenance'));
+// app.use('/api/maintenance', require('./routes/maintenance')); // Temporarily disabled
 app.use('/api/fuel', require('./routes/fuel'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/errors', require('./routes/errors'));
