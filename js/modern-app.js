@@ -31,8 +31,10 @@ class ModernITVMS {
             // Setup form validation
             this.setupFormValidation();
             
-            // Check authentication status from server
-            await this.checkAuthStatus();
+            // Skip authentication and go directly to dashboard
+            console.log('📋 Skipping authentication - Direct access mode');
+            this.showDashboard();
+            await this.loadDashboardData();
             
             console.log('✅ Application initialized successfully');
             
@@ -190,7 +192,7 @@ class ModernITVMS {
         });
     }
 
-    // API request helper with error handling
+    // API request helper with error handling (no authentication required)
     async apiRequest(endpoint, options = {}) {
         const url = `${this.apiBase}${endpoint}`;
         const config = {
@@ -200,11 +202,6 @@ class ModernITVMS {
             },
             ...options
         };
-
-        // Add authorization header if token exists
-        if (this.token) {
-            config.headers.Authorization = `Bearer ${this.token}`;
-        }
 
         try {
             console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
@@ -216,26 +213,22 @@ class ModernITVMS {
                 throw new Error(data.message || `HTTP ${response.status}: ${response.statusText}`);
             }
 
-            console.log(`✅ API Response: ${options.method || 'GET'} ${url}`, data);
+            console.log(`✅ API Response: ${options.method || 'GET'} ${url} - Success`);
             return data;
 
         } catch (error) {
-            console.error(`❌ API Error: ${options.method || 'GET'} ${url}`, error);
+            console.error(`❌ API Error: ${options.method || 'GET'} ${url}:`, error);
             
             // Handle different error types
-            if (error.message.includes('401') || error.message.includes('Unauthorized')) {
-                this.handleTokenExpired();
-            } else if (error.message.includes('403') || error.message.includes('Forbidden')) {
-                this.showError('You do not have permission to perform this action');
-            } else if (error.message.includes('404') || error.message.includes('Not Found')) {
-                this.showError('The requested resource was not found');
-            } else if (error.message.includes('500') || error.message.includes('Internal Server Error')) {
-                this.showError('Server error occurred. Please try again later');
+            if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                throw new Error('Network error. Please check your internet connection.');
+            } else if (error.message.includes('404')) {
+                throw new Error('The requested resource was not found.');
+            } else if (error.message.includes('500')) {
+                throw new Error('Server error occurred. Please try again later.');
             } else {
-                this.showError(error.message || 'An unexpected error occurred');
+                throw error;
             }
-            
-            throw error;
         }
     }
 
