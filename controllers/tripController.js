@@ -48,6 +48,7 @@ const getAllTrips = async (req, res) => {
       params.push(end_date);
     }
     
+    // Fixed: Use hardcoded LIMIT/OFFSET for Railway MySQL compatibility
     query += ` ORDER BY t.trip_date DESC, t.departure_time DESC LIMIT ${parseInt(limit)} OFFSET ${offset}`;
     
     const [trips] = await pool.execute(query, params);
