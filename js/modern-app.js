@@ -428,19 +428,43 @@ class ModernITVMS {
             this.showLoading('dashboard');
             
             // Load fresh statistics from database
-            const stats = await this.apiRequest('/vehicles/stats');
-            this.updateDashboardStats(stats);
+            try {
+                const stats = await this.apiRequest('/vehicles/stats');
+                this.updateDashboardStats(stats);
+            } catch (statsError) {
+                console.warn('Failed to load vehicle stats:', statsError);
+                this.updateDashboardStats({
+                    totalVehicles: 0,
+                    activeVehicles: 0,
+                    maintenanceDue: 0,
+                    totalTrips: 0
+                });
+            }
             
             // Load fresh recent trips from database
-            const trips = await this.apiRequest('/trips?limit=5');
-            this.renderRecentTrips(trips);
+            try {
+                const trips = await this.apiRequest('/trips?limit=5');
+                this.renderRecentTrips(trips);
+            } catch (tripsError) {
+                console.warn('Failed to load recent trips:', tripsError);
+                this.renderRecentTrips([]);
+            }
             
             this.hideLoading('dashboard');
             
         } catch (error) {
             this.hideLoading('dashboard');
             console.error('Failed to load dashboard data from database:', error);
-            this.showError('Failed to load dashboard data. Please refresh the page.');
+            this.showError('Failed to load dashboard data. Using sample data.');
+            
+            // Fallback to sample data
+            this.updateDashboardStats({
+                totalVehicles: 3,
+                activeVehicles: 2,
+                maintenanceDue: 1,
+                totalTrips: 5
+            });
+            this.renderRecentTrips([]);
         }
     }
 
@@ -458,7 +482,33 @@ class ModernITVMS {
         } catch (error) {
             this.hideLoading('vehicles');
             console.error('Failed to load vehicles from database:', error);
-            this.showError('Failed to load vehicles. Please refresh the page.');
+            this.showError('Failed to load vehicles. Using sample data.');
+            
+            // Fallback to sample data
+            const sampleVehicles = [
+                {
+                    id: 1,
+                    plate_number: 'T 123 ABC',
+                    vehicle_type: 'Bus',
+                    model: 'Toyota Coaster',
+                    manufacture_year: 2020,
+                    capacity: 30,
+                    status: 'Active',
+                    next_maintenance_date: '2026-02-15'
+                },
+                {
+                    id: 2,
+                    plate_number: 'T 456 DEF',
+                    vehicle_type: 'Minibus',
+                    model: 'Toyota Hiace',
+                    manufacture_year: 2021,
+                    capacity: 15,
+                    status: 'Active',
+                    next_maintenance_date: '2026-03-01'
+                }
+            ];
+            this.data.vehicles = sampleVehicles;
+            this.renderVehicles(sampleVehicles);
         }
     }
 
@@ -470,13 +520,38 @@ class ModernITVMS {
             const drivers = await this.apiRequest('/drivers');
             this.data.drivers = drivers;
             this.renderDrivers(drivers);
-            
             this.hideLoading('drivers');
             
         } catch (error) {
             this.hideLoading('drivers');
             console.error('Failed to load drivers from database:', error);
-            this.showError('Failed to load drivers. Please refresh the page.');
+            this.showError('Failed to load drivers. Using sample data.');
+            
+            // Fallback to sample data
+            const sampleDrivers = [
+                {
+                    id: 1,
+                    full_name: 'John Mwambene',
+                    license_number: 'DL-123456',
+                    phone_number: '255-789-456123',
+                    email: 'john@nit.ac.tz',
+                    experience_years: 5,
+                    license_expiry: '2025-12-31',
+                    status: 'Active'
+                },
+                {
+                    id: 2,
+                    full_name: 'Mary Joseph',
+                    license_number: 'DL-789012',
+                    phone_number: '255-712-345678',
+                    email: 'mary@nit.ac.tz',
+                    experience_years: 3,
+                    license_expiry: '2025-08-15',
+                    status: 'Active'
+                }
+            ];
+            this.data.drivers = sampleDrivers;
+            this.renderDrivers(sampleDrivers);
         }
     }
 
@@ -488,13 +563,44 @@ class ModernITVMS {
             const trips = await this.apiRequest('/trips');
             this.data.trips = trips;
             this.renderTrips(trips);
-            
             this.hideLoading('trips');
             
         } catch (error) {
             this.hideLoading('trips');
             console.error('Failed to load trips from database:', error);
-            this.showError('Failed to load trips. Please refresh the page.');
+            this.showError('Failed to load trips. Using sample data.');
+            
+            // Fallback to sample data
+            const sampleTrips = [
+                {
+                    id: 1,
+                    vehicle_id: 1,
+                    driver_id: 1,
+                    trip_date: '2026-01-31',
+                    origin: 'NIT Campus',
+                    destination: 'City Center',
+                    departure_time: '08:00',
+                    arrival_time: '09:30',
+                    status: 'Completed',
+                    distance: 25.5,
+                    fuel_consumed: 8.2
+                },
+                {
+                    id: 2,
+                    vehicle_id: 2,
+                    driver_id: 2,
+                    trip_date: '2026-01-31',
+                    origin: 'NIT Campus',
+                    destination: 'Airport',
+                    departure_time: '14:00',
+                    arrival_time: '15:45',
+                    status: 'Scheduled',
+                    distance: 45.0,
+                    fuel_consumed: 12.5
+                }
+            ];
+            this.data.trips = sampleTrips;
+            this.renderTrips(sampleTrips);
         }
     }
 
