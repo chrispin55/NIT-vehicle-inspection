@@ -68,15 +68,46 @@ async function closePool() {
   }
 }
 
-// Initialize pool on module load
-initializePool().catch((error) => {
-  logger.error('Failed to initialize database pool on startup:', error);
-  // Don't throw error to allow application to start in some cases
-  // The error will be handled when trying to use the database
-});
+// Initialize pool on first use instead of module load
+// This prevents startup crashes in Railway
+let poolInitialized = false;
+
+async function ensurePoolInitialized() {
+  if (!poolInitialized) {
+    try {
+      await initializePool();
+      poolInitialized = true;
+    } catch (error) {
+      logger.error('Failed to initialize database pool:', error);
+      // Don't throw, allow application to start
+      poolInitialized = false;
+    }
+  }
+  return pool;
+}
+
+// Test connection function for startup
+async function testConnection() {
+  try {
+    await ensurePoolInitialized();
+    if (!pool) return false;
+    
+    const connection = await pool.getConnection();
+    await connection.ping();
+    connection.release();
+    return true;
+  } catch (error) {
+    logger.error('Database connection test failed:', error.message);
+    return false;
+  }
+}
 
 module.exports = {
-  pool: pool || mysql.createPool(dbConfig),
+  getPool: async () => {
+    await ensurePoolInitialized();
+    return pool;
+  },
+  pool: pool, // Direct access (may be null until initialized)
   testConnection,
   closePool,
   config: dbConfig,

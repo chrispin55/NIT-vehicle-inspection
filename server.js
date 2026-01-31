@@ -140,13 +140,20 @@ process.on('SIGINT', () => {
 // Start server
 async function startServer() {
   try {
-    // Test database connection
+    console.log('🚀 Starting NIT University Vehicle Management System...');
+    
+    // Test database connection with timeout
+    console.log('🔍 Testing database connection...');
     const dbConnected = await testConnection();
     if (!dbConnected) {
       console.warn('⚠️  Database connection failed, but server will start anyway');
+      console.log('💡 The application will work, but database features may be limited');
+    } else {
+      console.log('✅ Database connection successful');
     }
     
-    const server = app.listen(PORT, () => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log('🚀 Server started successfully!');
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🌐 URL: http://localhost:${PORT}`);
@@ -155,10 +162,26 @@ async function startServer() {
       console.log(`🎓 ${process.env.UNIVERSITY_NAME || 'NIT University Dar es Salaam'}`);
     });
     
+    server.on('error', (error) => {
+      console.error('❌ Server error:', error);
+      if (error.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${PORT} is already in use`);
+      }
+    });
+    
     return server;
   } catch (error) {
     console.error('❌ Failed to start server:', error.message);
-    process.exit(1);
+    console.error('🔧 Error details:', error);
+    // Don't exit immediately on Railway, let it retry
+    if (process.env.RAILWAY_ENVIRONMENT === 'production') {
+      console.log('🔄 Railway environment detected, allowing retry...');
+      setTimeout(() => {
+        process.exit(1);
+      }, 5000);
+    } else {
+      process.exit(1);
+    }
   }
 }
 
