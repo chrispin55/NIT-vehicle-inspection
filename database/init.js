@@ -13,14 +13,14 @@ async function initializeDatabase() {
       throw new Error('Cannot connect to database');
     }
 
-    // Read and execute schema file
-    const schemaPath = path.join(__dirname, 'init.sql');
+    // Read and execute database file
+    const dbPath = path.join(__dirname, 'database.sql');
     
-    if (!fs.existsSync(schemaPath)) {
-      throw new Error(`Schema file not found: ${schemaPath}`);
+    if (!fs.existsSync(dbPath)) {
+      throw new Error(`Database file not found: ${dbPath}`);
     }
     
-    const schema = fs.readFileSync(schemaPath, 'utf8');
+    const schema = fs.readFileSync(dbPath, 'utf8');
     
     // Split schema into individual statements
     const statements = schema
