@@ -4,11 +4,11 @@ require('dotenv').config();
 const { logger, DatabaseError, handleDatabaseError } = require('../utils/errorHandler');
 
 const dbConfig = {
-  host: process.env.DB_HOST || process.env.RAILWAY_PRIVATE_MYSQL_HOST || 'localhost',
-  user: process.env.DB_USER || process.env.RAILWAY_PRIVATE_MYSQL_USER || 'root',
-  password: process.env.DB_PASSWORD || process.env.RAILWAY_PRIVATE_MYSQL_PASSWORD || '',
-  database: process.env.DB_NAME || process.env.RAILWAY_PRIVATE_MYSQL_DATABASE_NAME || 'nit_vehicle_management',
-  port: process.env.DB_PORT || process.env.RAILWAY_PRIVATE_MYSQL_PORT || 3306,
+  host: process.env.RAILWAY_PRIVATE_MYSQL_HOST || process.env.DB_HOST || 'localhost',
+  user: process.env.RAILWAY_PRIVATE_MYSQL_USER || process.env.DB_USER || 'root',
+  password: process.env.RAILWAY_PRIVATE_MYSQL_PASSWORD || process.env.DB_PASSWORD || '',
+  database: process.env.RAILWAY_PRIVATE_MYSQL_DATABASE_NAME || process.env.DB_NAME || 'nit_vehicle_management',
+  port: process.env.RAILWAY_PRIVATE_MYSQL_PORT || process.env.DB_PORT || 3306,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
@@ -17,13 +17,23 @@ const dbConfig = {
 
 // Use Cloud SQL in production (disabled for now)
 const isProduction = process.env.NODE_ENV === 'production';
-const isRailway = process.env.RAILWAY_ENVIRONMENT === 'production';
+const isRailway = process.env.RAILWAY_ENVIRONMENT === 'production' || process.env.RAILWAY_PRIVATE_MYSQL_HOST;
 const useCloudSQL = false; // Disabled until Cloud SQL is properly configured
 
 let pool;
 
 async function initializePool() {
   try {
+    // Debug logging for Railway environment
+    if (process.env.NODE_ENV === 'production') {
+      logger.info('🔧 Production environment detected');
+      logger.info('📍 Railway MySQL Host:', process.env.RAILWAY_PRIVATE_MYSQL_HOST);
+      logger.info('🔌 Railway MySQL Port:', process.env.RAILWAY_PRIVATE_MYSQL_PORT);
+      logger.info('👤 Railway MySQL User:', process.env.RAILWAY_PRIVATE_MYSQL_USER);
+      logger.info('💾 Railway MySQL Database:', process.env.RAILWAY_PRIVATE_MYSQL_DATABASE_NAME);
+      logger.info('🏗️ Railway Environment:', process.env.RAILWAY_ENVIRONMENT);
+    }
+    
     if (isRailway) {
       logger.info('🔧 Initializing Railway MySQL connection...');
       pool = mysql.createPool(dbConfig);
