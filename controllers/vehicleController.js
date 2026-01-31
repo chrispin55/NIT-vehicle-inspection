@@ -160,9 +160,9 @@ const createVehicle = async (req, res) => {
     
     const [result] = await pool.execute(`
       INSERT INTO vehicles (
-        plate_number, vehicle_type, model, manufacture_year, capacity,
+        id, plate_number, vehicle_type, model, manufacture_year, capacity,
         status, fuel_type, last_maintenance_date, next_maintenance_date, insurance_expiry
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES ((SELECT COALESCE(MAX(id), 0) + 1 FROM vehicles), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       plate_number, vehicle_type, model, manufacture_year, capacity,
       status, fuel_type, last_maintenance_date, next_maintenance_date, insurance_expiry

@@ -237,10 +237,10 @@ const createTrip = async (req, res) => {
     
     const [result] = await pool.execute(`
       INSERT INTO trips (
-        route_from, route_to, driver_id, vehicle_id, trip_date,
+        id, route_from, route_to, driver_id, vehicle_id, trip_date,
         departure_time, arrival_time, distance_km, fuel_consumed,
         passenger_count, notes, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES ((SELECT COALESCE(MAX(id), 0) + 1 FROM trips), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       route_from, route_to, driver_id, vehicle_id, trip_date,
       departure_time, arrival_time, distance_km, fuel_consumed,

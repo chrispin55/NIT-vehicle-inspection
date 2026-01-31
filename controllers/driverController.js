@@ -170,9 +170,9 @@ const createDriver = async (req, res) => {
     
     const [result] = await pool.execute(`
       INSERT INTO drivers (
-        full_name, license_number, phone_number, email, experience_years,
+        id, full_name, license_number, phone_number, email, experience_years,
         license_expiry, assigned_vehicle_id, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES ((SELECT COALESCE(MAX(id), 0) + 1 FROM drivers), ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       full_name, license_number, phone_number, email, experience_years,
       license_expiry, assigned_vehicle_id, status
