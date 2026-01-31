@@ -110,13 +110,11 @@ const getAllTrips = async (req, res) => {
 const getTripById = async (req, res) => {
   try {
     const { id } = req.params;
-    const pool = await getPool();
     
     const [trips] = await pool.execute(`
       SELECT t.*, 
              d.full_name as driver_name,
              d.phone_number as driver_phone,
-             d.license_number as driver_license,
              v.plate_number as vehicle_plate,
              v.vehicle_type as vehicle_type,
              v.model as vehicle_model
@@ -143,7 +141,7 @@ const getTripById = async (req, res) => {
   }
 };
 
-// Create trip
+// Create new trip
 const createTrip = async (req, res) => {
   try {
     const {
@@ -156,12 +154,10 @@ const createTrip = async (req, res) => {
       arrival_time,
       distance_km,
       fuel_consumed,
-      passenger_count,
+      passenger_count = 0,
       notes,
       status = 'Scheduled'
     } = req.body;
-    
-    const pool = await getPool();
     
     // Check if driver exists and is active
     const [driverCheck] = await pool.execute(
@@ -179,7 +175,7 @@ const createTrip = async (req, res) => {
     if (driverCheck[0].status !== 'Active') {
       return res.status(400).json({
         error: 'Bad Request',
-        message: 'Driver is not active'
+        message: 'Cannot assign trip to inactive driver'
       });
     }
     
@@ -199,7 +195,7 @@ const createTrip = async (req, res) => {
     if (vehicleCheck[0].status !== 'Active') {
       return res.status(400).json({
         error: 'Bad Request',
-        message: 'Vehicle is not active'
+        message: 'Cannot assign trip to inactive vehicle'
       });
     }
     
@@ -214,7 +210,7 @@ const createTrip = async (req, res) => {
       if (driverConflict.length > 0) {
         return res.status(400).json({
           error: 'Bad Request',
-          message: 'Driver has another trip scheduled at the same time'
+          message: 'Driver already has a trip scheduled at this time'
         });
       }
     }
@@ -230,7 +226,7 @@ const createTrip = async (req, res) => {
       if (vehicleConflict.length > 0) {
         return res.status(400).json({
           error: 'Bad Request',
-          message: 'Vehicle has another trip scheduled at the same time'
+          message: 'Vehicle already has a trip scheduled at this time'
         });
       }
     }
@@ -278,8 +274,6 @@ const updateTrip = async (req, res) => {
     const { id } = req.params;
     const updateFields = req.body;
     
-    const pool = await getPool();
-    
     // Check if trip exists
     const [existing] = await pool.execute(
       'SELECT id, status, driver_id, vehicle_id, trip_date, departure_time FROM trips WHERE id = ?',
@@ -295,6 +289,14 @@ const updateTrip = async (req, res) => {
     
     const trip = existing[0];
     
+    // Prevent updating completed or cancelled trips
+    if (trip.status === 'Completed' || trip.status === 'Cancelled') {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Cannot update completed or cancelled trips'
+      });
+    }
+    
     // Validate driver and vehicle if being updated
     if (updateFields.driver_id) {
       const [driverCheck] = await pool.execute(
@@ -302,10 +304,10 @@ const updateTrip = async (req, res) => {
         [updateFields.driver_id]
       );
       
-      if (driverCheck.length === 0) {
+      if (driverCheck.length === 0 || driverCheck[0].status !== 'Active') {
         return res.status(400).json({
           error: 'Bad Request',
-          message: 'Driver not found'
+          message: 'Invalid or inactive driver'
         });
       }
     }
@@ -316,16 +318,19 @@ const updateTrip = async (req, res) => {
         [updateFields.vehicle_id]
       );
       
-      if (vehicleCheck.length === 0) {
+      if (vehicleCheck.length === 0 || vehicleCheck[0].status !== 'Active') {
         return res.status(400).json({
           error: 'Bad Request',
-          message: 'Vehicle not found'
+          message: 'Invalid or inactive vehicle'
         });
       }
     }
     
-    const newTime = updateFields.departure_time || trip.departure_time;
+    // Check for conflicts if updating time, driver, or vehicle
+    const newDriverId = updateFields.driver_id || trip.driver_id;
+    const newVehicleId = updateFields.vehicle_id || trip.vehicle_id;
     const newDate = updateFields.trip_date || trip.trip_date;
+    const newTime = updateFields.departure_time || trip.departure_time;
     
     if (newTime && (updateFields.driver_id || updateFields.vehicle_id || updateFields.trip_date || updateFields.departure_time)) {
       // Check driver conflicts
@@ -333,17 +338,12 @@ const updateTrip = async (req, res) => {
         SELECT id FROM trips 
         WHERE driver_id = ? AND trip_date = ? AND departure_time = ? 
         AND status IN ('Scheduled', 'In Progress') AND id != ?
-      `, [
-        updateFields.driver_id || trip.driver_id,
-        newDate,
-        newTime,
-        id
-      ]);
+      `, [newDriverId, newDate, newTime, id]);
       
       if (driverConflict.length > 0) {
         return res.status(400).json({
           error: 'Bad Request',
-          message: 'Driver has another trip scheduled at the same time'
+          message: 'Driver already has a trip scheduled at this time'
         });
       }
       
@@ -352,17 +352,12 @@ const updateTrip = async (req, res) => {
         SELECT id FROM trips 
         WHERE vehicle_id = ? AND trip_date = ? AND departure_time = ? 
         AND status IN ('Scheduled', 'In Progress') AND id != ?
-      `, [
-        updateFields.vehicle_id || trip.vehicle_id,
-        newDate,
-        newTime,
-        id
-      ]);
+      `, [newVehicleId, newDate, newTime, id]);
       
       if (vehicleConflict.length > 0) {
         return res.status(400).json({
           error: 'Bad Request',
-          message: 'Vehicle has another trip scheduled at the same time'
+          message: 'Vehicle already has a trip scheduled at this time'
         });
       }
     }
@@ -414,7 +409,6 @@ const updateTrip = async (req, res) => {
 const deleteTrip = async (req, res) => {
   try {
     const { id } = req.params;
-    const pool = await getPool();
     
     // Check if trip exists
     const [existing] = await pool.execute(
@@ -429,10 +423,13 @@ const deleteTrip = async (req, res) => {
       });
     }
     
-    if (existing[0].status === 'In Progress') {
+    const trip = existing[0];
+    
+    // Prevent deleting in-progress trips
+    if (trip.status === 'In Progress') {
       return res.status(400).json({
         error: 'Bad Request',
-        message: 'Cannot delete a trip that is in progress'
+        message: 'Cannot delete trip that is currently in progress'
       });
     }
     
@@ -453,44 +450,56 @@ const deleteTrip = async (req, res) => {
 // Get trip statistics
 const getTripStats = async (req, res) => {
   try {
-    const pool = await getPool();
+    const { start_date, end_date } = req.query;
+    
+    let dateFilter = '';
+    const params = [];
+    
+    if (start_date && end_date) {
+      dateFilter = 'WHERE trip_date BETWEEN ? AND ?';
+      params.push(start_date, end_date);
+    }
+    
     const [stats] = await pool.execute(`
       SELECT 
         COUNT(*) as total_trips,
-        SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as completed_trips,
         SUM(CASE WHEN status = 'Scheduled' THEN 1 ELSE 0 END) as scheduled_trips,
         SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END) as in_progress_trips,
+        SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as completed_trips,
         SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END) as cancelled_trips,
-        SUM(distance_km) as total_distance,
-        SUM(fuel_consumed) as total_fuel_consumed,
+        SUM(passenger_count) as total_passengers,
         AVG(distance_km) as avg_distance,
-        AVG(fuel_consumed) as avg_fuel_consumed
-      FROM trips
-    `);
+        SUM(distance_km) as total_distance,
+        AVG(fuel_consumed) as avg_fuel_consumed,
+        SUM(fuel_consumed) as total_fuel_consumed
+      FROM trips 
+      ${dateFilter}
+    `, params);
     
     const [byStatus] = await pool.execute(`
       SELECT status, COUNT(*) as count
-      FROM trips
+      FROM trips 
+      ${dateFilter}
       GROUP BY status
       ORDER BY count DESC
-    `);
+    `, params);
     
-    const [byMonth] = await pool.execute(`
+    const [topRoutes] = await pool.execute(`
       SELECT 
-        DATE_FORMAT(trip_date, '%Y-%m') as month,
-        COUNT(*) as count,
-        SUM(distance_km) as total_distance
-      FROM trips
-      WHERE trip_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
-      GROUP BY DATE_FORMAT(trip_date, '%Y-%m')
-      ORDER BY month DESC
-      LIMIT 12
-    `);
+        CONCAT(route_from, ' → ', route_to) as route,
+        COUNT(*) as trip_count,
+        AVG(distance_km) as avg_distance
+      FROM trips 
+      ${dateFilter}
+      GROUP BY route_from, route_to
+      ORDER BY trip_count DESC
+      LIMIT 10
+    `, params);
     
     res.json({
       overview: stats[0],
       by_status: byStatus,
-      by_month: byMonth
+      top_routes: topRoutes
     });
   } catch (error) {
     console.error('Error fetching trip stats:', error);

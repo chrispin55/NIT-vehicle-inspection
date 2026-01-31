@@ -77,7 +77,6 @@ const getAllVehicles = async (req, res) => {
 const getVehicleById = async (req, res) => {
   try {
     const { id } = req.params;
-    const pool = await getPool();
     
     const [vehicles] = await pool.execute(`
       SELECT v.*, 
@@ -108,16 +107,16 @@ const getVehicleById = async (req, res) => {
       SELECT fr.*, d.full_name as driver_name
       FROM fuel_records fr
       LEFT JOIN drivers d ON fr.driver_id = d.id
-      WHERE fr.vehicle_id = ?
-      ORDER BY fr.fuel_date DESC 
+      WHERE fr.vehicle_id = ? 
+      ORDER BY fuel_date DESC 
       LIMIT 5
     `, [id]);
     
-    res.json({
-      vehicle: vehicles[0],
-      maintenance_history: maintenance,
-      fuel_records: fuelRecords
-    });
+    const vehicle = vehicles[0];
+    vehicle.maintenance_history = maintenance;
+    vehicle.fuel_records = fuelRecords;
+    
+    res.json(vehicle);
   } catch (error) {
     console.error('Error fetching vehicle:', error);
     res.status(500).json({
@@ -127,7 +126,7 @@ const getVehicleById = async (req, res) => {
   }
 };
 
-// Create vehicle
+// Create new vehicle
 const createVehicle = async (req, res) => {
   try {
     const {
@@ -143,8 +142,6 @@ const createVehicle = async (req, res) => {
       insurance_expiry
     } = req.body;
     
-    const pool = await getPool();
-    
     // Check if plate number already exists
     const [existing] = await pool.execute(
       'SELECT id FROM vehicles WHERE plate_number = ?',
@@ -152,8 +149,8 @@ const createVehicle = async (req, res) => {
     );
     
     if (existing.length > 0) {
-      return res.status(400).json({
-        error: 'Bad Request',
+      return res.status(409).json({
+        error: 'Conflict',
         message: 'Vehicle with this plate number already exists'
       });
     }
@@ -193,8 +190,6 @@ const updateVehicle = async (req, res) => {
     const { id } = req.params;
     const updateFields = req.body;
     
-    const pool = await getPool();
-    
     // Check if vehicle exists
     const [existing] = await pool.execute(
       'SELECT id FROM vehicles WHERE id = ?',
@@ -216,8 +211,8 @@ const updateVehicle = async (req, res) => {
       );
       
       if (duplicate.length > 0) {
-        return res.status(400).json({
-          error: 'Bad Request',
+        return res.status(409).json({
+          error: 'Conflict',
           message: 'Vehicle with this plate number already exists'
         });
       }
@@ -264,7 +259,6 @@ const updateVehicle = async (req, res) => {
 const deleteVehicle = async (req, res) => {
   try {
     const { id } = req.params;
-    const pool = await getPool();
     
     // Check if vehicle exists
     const [existing] = await pool.execute(
