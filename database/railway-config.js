@@ -6,7 +6,7 @@ const { logger } = require('../utils/errorHandler');
 
 // Railway MySQL Configuration
 const RAILWAY_DB_CONFIG = {
-  // Use Railway public host (works from anywhere)
+  // Direct MySQL connection string
   host: 'turntable.proxy.rlwy.net',
   port: 12096,
   user: 'root',
@@ -16,7 +16,6 @@ const RAILWAY_DB_CONFIG = {
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
-  // Removed: acquireTimeout, timeout, reconnect (not supported by mysql2)
 };
 
 // Fallback configuration for local development
