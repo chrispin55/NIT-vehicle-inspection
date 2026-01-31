@@ -127,7 +127,7 @@ CREATE TABLE IF NOT EXISTS fuel_records (
 
 -- Insert default admin user (password: nit2023)
 INSERT IGNORE INTO users (username, password, email, full_name, role) 
-VALUES ('admin', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin@nit.ac.tz', 'System Administrator', 'admin');
+VALUES ('admin', '$2a$10$XY9vt6.A.Gg.BgAyksbyz.EYqMe8EBZcAYjr2xhC0fc6R4u.LyclG', 'admin@nit.ac.tz', 'System Administrator', 'admin');
 
 -- Insert sample vehicles
 INSERT IGNORE INTO vehicles (plate_number, vehicle_type, model, manufacture_year, capacity) VALUES
