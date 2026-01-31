@@ -8,6 +8,11 @@ const path = require('path');
 require('dotenv').config();
 
 const { testConnection } = require('./database/config');
+const { 
+  globalErrorHandler, 
+  requestLogger, 
+  notFoundHandler 
+} = require('./utils/errorHandler');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -51,6 +56,7 @@ app.use(cors(corsOptions));
 // Basic middleware
 app.use(compression());
 app.use(morgan('combined'));
+app.use(requestLogger);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -77,6 +83,7 @@ app.use('/api/trips', require('./routes/trips'));
 app.use('/api/maintenance', require('./routes/maintenance'));
 app.use('/api/fuel', require('./routes/fuel'));
 app.use('/api/reports', require('./routes/reports'));
+app.use('/api/errors', require('./routes/errors'));
 
 // Serve the main HTML file for the frontend
 app.get('/', (req, res) => {
@@ -84,48 +91,10 @@ app.get('/', (req, res) => {
 });
 
 // 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    error: 'Route not found',
-    message: `Cannot ${req.method} ${req.originalUrl}`,
-    timestamp: new Date().toISOString()
-  });
-});
+app.use('*', notFoundHandler);
 
 // Global error handler
-app.use((error, req, res, next) => {
-  console.error('❌ Global error:', error);
-  
-  // Handle specific error types
-  if (error.name === 'ValidationError') {
-    return res.status(400).json({
-      error: 'Validation Error',
-      message: error.message,
-      details: error.details || null
-    });
-  }
-  
-  if (error.name === 'UnauthorizedError') {
-    return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Invalid or missing authentication token'
-    });
-  }
-  
-  if (error.code === 'ER_DUP_ENTRY') {
-    return res.status(409).json({
-      error: 'Duplicate Entry',
-      message: 'A record with this value already exists'
-    });
-  }
-  
-  // Default error response
-  res.status(error.status || 500).json({
-    error: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : error.name,
-    message: process.env.NODE_ENV === 'production' ? 'Something went wrong' : error.message,
-    timestamp: new Date().toISOString()
-  });
-});
+app.use(globalErrorHandler);
 
 // Graceful shutdown
 process.on('SIGTERM', () => {

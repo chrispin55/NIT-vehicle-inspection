@@ -1,8 +1,7 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
-// Import Cloud SQL connector for production
-const cloudSQL = require('../gcp/cloud-sql');
+const { logger, DatabaseError, handleDatabaseError } = require('../utils/errorHandler');
 
 const dbConfig = {
   host: process.env.DB_HOST || process.env.RAILWAY_PRIVATE_MYSQL_HOST || 'localhost',
@@ -13,31 +12,37 @@ const dbConfig = {
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  acquireTimeout: 60000,
-  timeout: 60000,
-  reconnect: true,
   charset: 'utf8mb4'
 };
 
-// Use Cloud SQL in production
+// Use Cloud SQL in production (disabled for now)
 const isProduction = process.env.NODE_ENV === 'production';
 const isRailway = process.env.RAILWAY_ENVIRONMENT === 'production';
-const useCloudSQL = isProduction && process.env.DB_CONNECTION_NAME && !isRailway;
+const useCloudSQL = false; // Disabled until Cloud SQL is properly configured
 
 let pool;
 
 async function initializePool() {
-  if (useCloudSQL) {
-    console.log('🔧 Initializing Cloud SQL connection...');
-    pool = await cloudSQL.createPool();
-  } else if (isRailway) {
-    console.log('🔧 Initializing Railway MySQL connection...');
-    pool = mysql.createPool(dbConfig);
-  } else {
-    console.log('🔧 Initializing local MySQL connection...');
-    pool = mysql.createPool(dbConfig);
+  try {
+    if (isRailway) {
+      logger.info('🔧 Initializing Railway MySQL connection...');
+      pool = mysql.createPool(dbConfig);
+    } else {
+      logger.info('🔧 Initializing local MySQL connection...');
+      pool = mysql.createPool(dbConfig);
+    }
+
+    // Test the connection
+    const connection = await pool.getConnection();
+    await connection.ping();
+    connection.release();
+    
+    logger.info('✅ Database pool initialized successfully');
+    return pool;
+  } catch (error) {
+    logger.error('❌ Failed to initialize database pool:', error);
+    throw new DatabaseError('Failed to initialize database connection', error);
   }
-  return pool;
 }
 
 async function testConnection() {
@@ -47,25 +52,30 @@ async function testConnection() {
     }
     
     const connection = await pool.getConnection();
-    console.log('✅ Database connected successfully');
+    await connection.ping();
     connection.release();
+    
+    logger.info('✅ Database connection test successful');
     return true;
   } catch (error) {
-    console.error('❌ Database connection failed:', error.message);
+    logger.error('❌ Database connection test failed:', error);
     return false;
   }
 }
 
 async function closePool() {
-  if (useCloudSQL) {
-    await cloudSQL.closePool();
-  } else if (pool) {
+  if (pool) {
     await pool.end();
+    logger.info('Database pool closed');
   }
 }
 
 // Initialize pool on module load
-initializePool().catch(console.error);
+initializePool().catch((error) => {
+  logger.error('Failed to initialize database pool on startup:', error);
+  // Don't throw error to allow application to start in some cases
+  // The error will be handled when trying to use the database
+});
 
 module.exports = {
   pool: pool || mysql.createPool(dbConfig),

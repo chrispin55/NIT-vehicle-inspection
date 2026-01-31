@@ -38,11 +38,7 @@
     "morgan": "^1.10.0",
     "compression": "^1.7.4",
     "express-rate-limit": "^6.10.0",
-    "@google-cloud/sql": "^3.4.0",
-    "@google-cloud/storage": "^7.7.0",
-    "@google-cloud/secret-manager": "^4.2.2",
-    "pg": "^8.11.3",
-    "pg-pool": "^3.6.1"
+    "winston": "^3.11.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",

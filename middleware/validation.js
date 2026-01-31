@@ -146,9 +146,9 @@ const validateMaintenance = [
     .isInt({ min: 1 })
     .withMessage('Invalid vehicle ID'),
   
-  body('maintenance_type')
-    .isIn(['Routine', 'Repair', 'Inspection'])
-    .withMessage('Invalid maintenance type'),
+  body('service_type')
+    .isIn(['Routine Maintenance', 'Oil Change', 'Brake Repair', 'Tire Replacement', 'Engine Repair'])
+    .withMessage('Invalid service type'),
   
   body('description')
     .optional()
@@ -161,20 +161,25 @@ const validateMaintenance = [
     .isFloat({ min: 0 })
     .withMessage('Cost must be a positive number'),
   
-  body('maintenance_date')
+  body('service_date')
     .isISO8601()
-    .withMessage('Invalid maintenance date format'),
+    .withMessage('Invalid service date format'),
   
-  body('next_maintenance_date')
+  body('next_service_date')
     .optional()
     .isISO8601()
-    .withMessage('Invalid next maintenance date format'),
+    .withMessage('Invalid next service date format'),
   
-  body('mechanic_name')
+  body('performed_by')
     .optional()
     .trim()
     .isLength({ min: 2, max: 100 })
-    .withMessage('Mechanic name must be between 2 and 100 characters'),
+    .withMessage('Performed by must be between 2 and 100 characters'),
+  
+  body('mileage')
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage('Mileage must be a non-negative integer'),
   
   handleValidationErrors
 ];
@@ -190,12 +195,11 @@ const validateFuelRecord = [
     .withMessage('Invalid fuel date format'),
   
   body('fuel_type')
-    .isIn(['Petrol', 'Diesel', 'Electric', 'Hybrid'])
+    .isIn(['Diesel', 'Petrol', 'Electric', 'Hybrid'])
     .withMessage('Invalid fuel type'),
   
   body('quantity_liters')
-    .optional()
-    .isFloat({ min: 0 })
+    .isFloat({ min: 0.1 })
     .withMessage('Quantity must be a positive number'),
   
   body('cost_per_liter')
@@ -208,13 +212,18 @@ const validateFuelRecord = [
     .isFloat({ min: 0 })
     .withMessage('Total cost must be a positive number'),
   
-  body('odometer_reading')
+  body('mileage')
     .optional()
     .isInt({ min: 0 })
-    .withMessage('Odometer reading must be a non-negative integer'),
+    .withMessage('Mileage must be a non-negative integer'),
+  
+  body('fuel_station')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Fuel station must not exceed 100 characters'),
   
   body('driver_id')
-    .optional()
     .isInt({ min: 1 })
     .withMessage('Invalid driver ID'),
   
